@@ -157,7 +157,7 @@ class EntropyRegularizedGaussianMixtureDeepGenerativeModel(GaussianMixtureDeepGe
     def _unlabelled_regularisation(self, x: Tensor) -> Tensor:
         return -cross_entropy(target=self.predict(x), input=self._q_y_x_module(x))
 
-
+# L2 implementation from https://github.com/MatthewWilletts/GM-DGM
 class L2RegularizedGaussianMixtureDeepGenerativeModel(GaussianMixtureDeepGenerativeModel):
     def __init__(
         self,
