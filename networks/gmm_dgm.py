@@ -27,9 +27,9 @@ class GaussianMixtureDeepGenerativeModel(Module, ABC):
         if log_priors is None:
             from torch import full
 
-            self._log_priors = full(size=(n_y,), fill_value=1.0 / n_y).float().log()
+            self.register_buffer("log_priors", full(size=(n_y,), fill_value=1.0 / n_y).float().log())
         else:
-            self._log_priors = log_priors
+            self.register_buffer("log_priors", log_priors)
         self._n_y = n_y
         self._n_z = n_z
         self._n_x = n_x
@@ -123,7 +123,7 @@ class GaussianMixtureDeepGenerativeModel(Module, ABC):
         # sum dims, -1 for MLP, -1,-2,-3 for CNN
         dim = [-i for i in range(1, x.ndim - 1)]
         l_px = self._p_x_z_module.log_prob(x).sum(dim=dim)
-        l_py = (y * self._log_priors).sum(dim=-1)
+        l_py = (y * self.log_priors).sum(dim=-1)
         l_pz = self._p_z_y_module.log_prob(z).sum(dim=-1)
         l_qz = self._q_z_xy_module.log_prob(z).sum(dim=-1)
         return (l_px + l_py + l_pz - l_qz).mean(dim=0)
@@ -156,6 +156,7 @@ class EntropyRegularizedGaussianMixtureDeepGenerativeModel(GaussianMixtureDeepGe
 
     def _unlabelled_regularisation(self, x: Tensor) -> Tensor:
         return -cross_entropy(target=self.predict(x), input=self._q_y_x_module(x))
+
 
 # L2 implementation from https://github.com/MatthewWilletts/GM-DGM
 class L2RegularizedGaussianMixtureDeepGenerativeModel(GaussianMixtureDeepGenerativeModel):
