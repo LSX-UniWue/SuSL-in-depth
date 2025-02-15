@@ -10,4 +10,4 @@ class Reshape(Module):
         self.__shape = shape
 
     def forward(self, x: Tensor) -> Tensor:
-        return x.reshape(self.__shape)
+        return x.view(self.__shape)
