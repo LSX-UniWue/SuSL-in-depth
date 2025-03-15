@@ -40,11 +40,8 @@ class LightningGMMModel(LightningModule):
         return loss
 
     def validation_step(self, batch: Any, batch_idx: int) -> Tensor:
-        pred = self.__model({"x_l": batch[0], "y_l": batch[1], "x_l_target": batch[0].detach().clone()})
-        loss = self.__loss_fn(pred, None)
-        self.__val_metrics.update(self.__model.predict(batch[0]), batch[1])
-        self.log_dict({f"val_{k}": v for k, v in pred.items()}, prog_bar=True)
-        self.log("val_loss", loss, prog_bar=True)
+        loss = self.__metric_step(batch=batch, batch_idx=batch_idx, prefix="val")
+        self.__val_metrics.update(self.__model.predict(batch["x_l"]), batch["y_l"])
         return loss
 
     def on_validation_epoch_end(self) -> None:
@@ -52,11 +49,15 @@ class LightningGMMModel(LightningModule):
         self.__val_metrics.reset()
 
     def test_step(self, batch: Any, batch_idx: int) -> Tensor:
-        pred = self.__model({"x_l": batch[0], "y_l": batch[1], "x_l_target": batch[0].detach().clone()})
+        loss = self.__metric_step(batch=batch, batch_idx=batch_idx, prefix="test")
+        self.__test_metrics.update(self.__model.predict(batch["x_l"]), batch["y_l"])
+        return loss
+
+    def __metric_step(self, batch: Any, batch_idx: int, prefix: str) -> Tensor:
+        pred = self.__model(batch)
         loss = self.__loss_fn(pred, None)
-        self.__test_metrics.update(self.__model.predict(batch[0]), batch[1])
-        self.log_dict({f"test_{k}": v for k, v in pred.items()}, prog_bar=True)
-        self.log("test_loss", loss, prog_bar=True)
+        self.log_dict({f"{prefix}_{k}": v for k, v in pred.items()}, prog_bar=True)
+        self.log(f"{prefix}_loss", loss, prog_bar=True)
         return loss
 
     def on_test_epoch_end(self) -> None:
@@ -64,4 +65,4 @@ class LightningGMMModel(LightningModule):
         self.__test_metrics.reset()
 
     def on_train_epoch_end(self) -> None:
-        self.__loss_fn.step(step_size=self.__loss_fn_step_step_size, max_value=self.__loss_fn_max_value)
+        self.__loss_fn.step(step_size=self.__loss_fn_step_step_size, max_value=self.__loss_fn_step_max_value)

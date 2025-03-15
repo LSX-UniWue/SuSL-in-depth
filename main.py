@@ -7,6 +7,7 @@ from torchvision.datasets import MNIST
 from torchvision.transforms.v2 import PILToTensor, Compose, ToDtype, Lambda
 
 from data.data_module import SemiUnsupervisedDataModule
+from data.susl_dataset import LabeledDatasetFacade
 from data.utils import create_susl_dataset
 from metrics.cluster_and_label import ClusterAccuracy
 from networks.gmm_dgm import (
@@ -48,22 +49,27 @@ def run_cnn() -> None:
         lengths=[0.8, 0.2],
         generator=Generator().manual_seed(42),
     )
-    train_dataset_labeled, train_dataset_unlabeled = create_susl_dataset(
+    train_dataset_labeled, train_dataset_unlabeled, class_mapper = create_susl_dataset(
         dataset=train_dataset, num_labels=0.2, classes_to_hide=[5, 6, 7, 8, 9]
     )
 
     test_dataset = MNIST(root="/tmp", train=False, download=True, transform=transforms)
 
-    datamodule = SemiUnsupervisedDataModule(
-        train_dataset_labeled=train_dataset_labeled,
-        train_dataset_unlabeled=train_dataset_unlabeled,
-        validation_dataset=validation_dataset,
-        test_dataset=test_dataset,
-        batch_size=128,
-    )
     # Create model
     n_l, n_aug, n_classes = 5, 40, 10
     n_x, n_y, n_z = 28 * 28, n_l + n_aug, 50
+    datamodule = SemiUnsupervisedDataModule(
+        train_dataset_labeled=train_dataset_labeled,
+        train_dataset_unlabeled=train_dataset_unlabeled,
+        validation_dataset=LabeledDatasetFacade(
+            validation_dataset, indices=list(range(len(validation_dataset))), class_mapper=class_mapper
+        ),
+        test_dataset=LabeledDatasetFacade(
+            test_dataset, indices=list(range(len(test_dataset))), class_mapper=class_mapper
+        ),
+        batch_size=128,
+    )
+
     q_y_x_module = Sequential(
         Conv2d(in_channels=1, out_channels=32, kernel_size=3, padding=1, stride=2),
         ReLU(),
@@ -154,23 +160,28 @@ def run_linear() -> None:
         lengths=[0.8, 0.2],
         generator=Generator().manual_seed(42),
     )
-    train_dataset_labeled, train_dataset_unlabeled = create_susl_dataset(
+    train_dataset_labeled, train_dataset_unlabeled, class_mapper = create_susl_dataset(
         dataset=train_dataset, num_labels=0.2, classes_to_hide=[5, 6, 7, 8, 9]
     )
 
     test_dataset = MNIST(root="/tmp", train=False, download=True, transform=transforms)
 
-    datamodule = SemiUnsupervisedDataModule(
-        train_dataset_labeled=train_dataset_labeled,
-        train_dataset_unlabeled=train_dataset_unlabeled,
-        validation_dataset=validation_dataset,
-        test_dataset=test_dataset,
-        batch_size=128,
-    )
     # Create model
     n_l, n_aug, n_classes = 5, 40, 10
     n_x, n_y, n_z = 28 * 28, n_l + n_aug, 50
     hidden_dim = 500
+    datamodule = SemiUnsupervisedDataModule(
+        train_dataset_labeled=train_dataset_labeled,
+        train_dataset_unlabeled=train_dataset_unlabeled,
+        validation_dataset=LabeledDatasetFacade(
+            validation_dataset, indices=list(range(len(validation_dataset))), class_mapper=class_mapper
+        ),
+        test_dataset=LabeledDatasetFacade(
+            test_dataset, indices=list(range(len(test_dataset))), class_mapper=class_mapper
+        ),
+        batch_size=128,
+    )
+
     q_y_x_module = Sequential(
         Linear(in_features=n_x, out_features=hidden_dim),
         ReLU(),
@@ -231,7 +242,7 @@ def run_linear() -> None:
             prefix="test_",
         ),
     )
-    trainer = Trainer(max_epochs=20, check_val_every_n_epoch=1)
+    trainer = Trainer(max_epochs=20, check_val_every_n_epoch=2)
     trainer.fit(model=lt_model, datamodule=datamodule)
     trainer.test(model=lt_model, datamodule=datamodule)
 
