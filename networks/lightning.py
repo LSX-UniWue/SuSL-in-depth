@@ -17,6 +17,8 @@ class LightningGMMModel(LightningModule):
         val_metrics: MetricCollection,
         test_metrics: MetricCollection,
         lr: float = 1e-3,
+        loss_fn_step_step_size: float = 0.02,
+        loss_fn_step_max_value: float = 1.0,
     ) -> None:
         super().__init__()
         self.__model = model
@@ -24,6 +26,8 @@ class LightningGMMModel(LightningModule):
         self.__loss_fn = loss_fn
         self.__val_metrics = val_metrics
         self.__test_metrics = test_metrics
+        self.__loss_fn_step_step_size = loss_fn_step_step_size
+        self.__loss_fn_step_max_value = loss_fn_step_max_value
 
     def configure_optimizers(self) -> Optimizer:
         return Adam(self.__model.parameters(), lr=self.__lr)
@@ -60,5 +64,4 @@ class LightningGMMModel(LightningModule):
         self.__test_metrics.reset()
 
     def on_train_epoch_end(self) -> None:
-        # TODO: add params?
-        self.__loss_fn.step()
+        self.__loss_fn.step(step_size=self.__loss_fn_step_step_size, max_value=self.__loss_fn_max_value)
