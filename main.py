@@ -1,5 +1,5 @@
 from lightning import Trainer
-from torch import Generator, float32, flatten
+from torch import Generator, float32, flatten, Tensor
 from torch.nn import Sequential, ReLU, Identity, Flatten, Upsample, Linear, Conv2d
 from torch.utils.data import random_split
 from torchmetrics import MetricCollection
@@ -18,6 +18,19 @@ from networks.lightning import LightningGMMModel
 from networks.losses import GaussianMixtureDeepGenerativeLoss, EntropyGaussianMixtureDeepGenerativeLoss
 from networks.misc import Reshape
 from networks.variational_layer import GaussianVariationalLayer, BernoulliVariationalLayer
+
+
+def get_prior(n_l: int, n_aug: int) -> Tensor:
+    from torch import tensor
+
+    # Unsupervised
+    if n_l <= 0:
+        return tensor(n_aug * [1 / n_aug])
+    # (Semi-)Supervised
+    if n_aug <= 0:
+        return tensor(n_l * [1 / n_l])
+    # SuSL
+    return 0.5 * tensor(n_l * [1 / n_l] + n_aug * [1 / n_aug])
 
 
 def run_cnn() -> None:
@@ -49,7 +62,8 @@ def run_cnn() -> None:
         batch_size=128,
     )
     # Create model
-    n_x, n_y, n_z = 28 * 28, 10, 50
+    n_l, n_aug, n_classes = 5, 40, 10
+    n_x, n_y, n_z = 28 * 28, n_l + n_aug, 50
     q_y_x_module = Sequential(
         Conv2d(in_channels=1, out_channels=32, kernel_size=3, padding=1, stride=2),
         ReLU(),
@@ -97,6 +111,7 @@ def run_cnn() -> None:
         p_x_z_module=p_x_z_module,
         p_z_y_module=p_z_y_module,
         q_z_xy_module=q_z_xy_module,
+        log_priors=get_prior(n_l=n_l, n_aug=n_aug).log(),
     )
     print(model)
     # Create trainer and run
@@ -105,15 +120,15 @@ def run_cnn() -> None:
         loss_fn=EntropyGaussianMixtureDeepGenerativeLoss(),
         val_metrics=MetricCollection(
             metrics={
-                "micro_accuracy": ClusterAccuracy(num_classes=n_y, average="micro"),
-                "macro_accuracy": ClusterAccuracy(num_classes=n_y, average="macro"),
+                "micro_accuracy": ClusterAccuracy(num_classes=n_classes, average="micro"),
+                "macro_accuracy": ClusterAccuracy(num_classes=n_classes, average="macro"),
             },
             prefix="val_",
         ),
         test_metrics=MetricCollection(
             metrics={
-                "micro_accuracy": ClusterAccuracy(num_classes=n_y, average="micro"),
-                "macro_accuracy": ClusterAccuracy(num_classes=n_y, average="macro"),
+                "micro_accuracy": ClusterAccuracy(num_classes=n_classes, average="micro"),
+                "macro_accuracy": ClusterAccuracy(num_classes=n_classes, average="macro"),
             },
             prefix="test_",
         ),
@@ -153,7 +168,8 @@ def run_linear() -> None:
         batch_size=128,
     )
     # Create model
-    n_x, n_y, n_z = 28 * 28, 10, 50
+    n_l, n_aug, n_classes = 5, 40, 10
+    n_x, n_y, n_z = 28 * 28, n_l + n_aug, 50
     hidden_dim = 500
     q_y_x_module = Sequential(
         Linear(in_features=n_x, out_features=hidden_dim),
@@ -193,6 +209,7 @@ def run_linear() -> None:
         p_x_z_module=p_x_z_module,
         p_z_y_module=p_z_y_module,
         q_z_xy_module=q_z_xy_module,
+        log_priors=get_prior(n_l=n_l, n_aug=n_aug).log(),
     )
     print(model)
     # Create trainer and run
@@ -201,15 +218,15 @@ def run_linear() -> None:
         loss_fn=GaussianMixtureDeepGenerativeLoss(gamma=5e-5),
         val_metrics=MetricCollection(
             metrics={
-                "micro_accuracy": ClusterAccuracy(num_classes=n_y, average="micro"),
-                "macro_accuracy": ClusterAccuracy(num_classes=n_y, average="macro"),
+                "micro_accuracy": ClusterAccuracy(num_classes=n_classes, average="micro"),
+                "macro_accuracy": ClusterAccuracy(num_classes=n_classes, average="macro"),
             },
             prefix="val_",
         ),
         test_metrics=MetricCollection(
             metrics={
-                "micro_accuracy": ClusterAccuracy(num_classes=n_y, average="micro"),
-                "macro_accuracy": ClusterAccuracy(num_classes=n_y, average="macro"),
+                "micro_accuracy": ClusterAccuracy(num_classes=n_classes, average="micro"),
+                "macro_accuracy": ClusterAccuracy(num_classes=n_classes, average="macro"),
             },
             prefix="test_",
         ),
