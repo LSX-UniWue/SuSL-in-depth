@@ -8,7 +8,11 @@ from .susl_dataset import DatasetFacade, LabeledDatasetFacade
 
 
 def create_susl_dataset(
-    dataset: Dataset, num_labels: float = 0.2, classes_to_hide: Sequence[int] = None
+    dataset: Dataset,
+    num_labels: float = 0.2,
+    classes_to_hide: Sequence[int] = None,
+    dataset_facade_init=DatasetFacade,
+    labeled_dataset_facade_init=LabeledDatasetFacade,
 ) -> Tuple[Dataset, Dataset, Tensor]:
     # Find ids for each class
     ids = defaultdict(list)
@@ -33,7 +37,7 @@ def create_susl_dataset(
         class_mapper[k] = i
     # Return facades
     return (
-        LabeledDatasetFacade(dataset, ids_labeled, class_mapper=class_mapper),
-        DatasetFacade(dataset, ids_unlabeled),
+        labeled_dataset_facade_init(dataset, ids_labeled, class_mapper=class_mapper),
+        dataset_facade_init(dataset, ids_unlabeled),
         class_mapper,
     )
