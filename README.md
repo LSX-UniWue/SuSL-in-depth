@@ -1,4 +1,4 @@
-# SuSL-in-depth
+# Semi-unsupervised Learning: An In-depth Parameter Analysis
 
 This is the official implementation of the paper [Semi-unsupervised Learning: An In-depth Parameter Analysis](https://link.springer.com/chapter/10.1007/978-3-030-87626-5_5)
 
